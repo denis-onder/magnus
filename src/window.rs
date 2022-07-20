@@ -2,8 +2,15 @@ extern crate gl;
 extern crate sdl2;
 
 use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use sdl2::render::WindowCanvas;
 use std::time::Duration;
+
+pub struct WindowRenderOptions {
+    pub title: String,
+    pub width: u32,
+    pub height: u32,
+    pub event_handler_func: fn(&Event, &mut WindowCanvas),
+}
 
 fn find_opengl_driver() -> Option<u32> {
     for (index, item) in sdl2::render::drivers().enumerate() {
@@ -15,14 +22,14 @@ fn find_opengl_driver() -> Option<u32> {
     return None;
 }
 
-pub fn render_window(title: &str, width: u32, height: u32) {
+pub fn render_window(options: WindowRenderOptions) {
     let opengl_driver_index = find_opengl_driver().unwrap();
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
-        .window(title, width, height)
+        .window(options.title.as_str(), options.width, options.height)
         .opengl()
         .build()
         .unwrap();
@@ -35,7 +42,7 @@ pub fn render_window(title: &str, width: u32, height: u32) {
 
     gl::load_with(|name| video_subsystem.gl_get_proc_address(name) as *const _);
 
-    canvas.window().gl_set_context_to_current();
+    canvas.window().gl_set_context_to_current().unwrap();
 
     unsafe {
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
@@ -48,15 +55,7 @@ pub fn render_window(title: &str, width: u32, height: u32) {
 
     'running: loop {
         for event in event_pump.poll_iter() {
-            println!("{:?}", event);
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-                _ => {}
-            }
+            (options.event_handler_func)(&event, &mut canvas);
         }
 
         canvas.clear();
